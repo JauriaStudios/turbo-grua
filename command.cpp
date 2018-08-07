@@ -1,4 +1,6 @@
 #include "command.h"
+#include "ArduinoJson.h"
+#include <i2c_t3.h>
 
 Command::Command() {
   //initialize Command to a zero-move value;
@@ -47,7 +49,6 @@ bool Command::processMessage(String& msg) {
   String s = msg.substring(first, last);
   command.num = s.toInt();
  // Serial.println(cmd.num);
-  
 
   //parse up to 5 Values
   command.valueX = NAN; 
@@ -101,10 +102,6 @@ int Command::pos(String& s, char c, int start) {
   }
   return -1;
 }
-
-
-
-
 
 void printErr() {
   Serial.println("rs"); //'resend'

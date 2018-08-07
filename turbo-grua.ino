@@ -6,14 +6,10 @@
 #include "queue.h"
 #include "command.h"
 
-#include <Stepper.h>
-
-Stepper stepper(2400, STEPPER_GRIPPER_PIN_0, STEPPER_GRIPPER_PIN_1, STEPPER_GRIPPER_PIN_2, STEPPER_GRIPPER_PIN_3);
 RampsStepper stepperRotate(Z_STEP_PIN, Z_DIR_PIN, Z_ENABLE_PIN);
 RampsStepper stepperLower(Y_STEP_PIN, Y_DIR_PIN, Y_ENABLE_PIN);
 RampsStepper stepperHigher(X_STEP_PIN, X_DIR_PIN, X_ENABLE_PIN);
 RampsStepper stepperExtruder(E_STEP_PIN, E_DIR_PIN, E_ENABLE_PIN);
-FanControl fan(FAN_PIN);
 RobotGeometry geometry;
 Interpolation interpolator;
 Queue<Cmd> queue(15);
@@ -21,59 +17,34 @@ Command command;
 
 
 void setup() {
-  Serial.begin(9600);
-  
-  //various pins..
-  pinMode(HEATER_0_PIN  , OUTPUT);
-  pinMode(HEATER_1_PIN  , OUTPUT);
-  pinMode(LED_PIN       , OUTPUT);
-  
-  //unused Stepper..
-  pinMode(E_STEP_PIN   , OUTPUT);
-  pinMode(E_DIR_PIN    , OUTPUT);
-  pinMode(E_ENABLE_PIN , OUTPUT);
-  
-  //unused Stepper..
-  pinMode(Q_STEP_PIN   , OUTPUT);
-  pinMode(Q_DIR_PIN    , OUTPUT);
-  pinMode(Q_ENABLE_PIN , OUTPUT);
-  
-  //GripperPins
-  pinMode(STEPPER_GRIPPER_PIN_0, OUTPUT);
-  pinMode(STEPPER_GRIPPER_PIN_1, OUTPUT);
-  pinMode(STEPPER_GRIPPER_PIN_2, OUTPUT);
-  pinMode(STEPPER_GRIPPER_PIN_3, OUTPUT);
-  digitalWrite(STEPPER_GRIPPER_PIN_0, LOW);
-  digitalWrite(STEPPER_GRIPPER_PIN_1, LOW);
-  digitalWrite(STEPPER_GRIPPER_PIN_2, LOW);
-  digitalWrite(STEPPER_GRIPPER_PIN_3, LOW);
+  Serial.begin(115200);
 
-  
+  pinMode(LED_BUILTIN, OUTPUT);     
+
+
   //reduction of steppers..
-  stepperHigher.setReductionRatio(32.0 / 9.0, 200 * 16);  //big gear: 32, small gear: 9, steps per rev: 200, microsteps: 16
-  stepperLower.setReductionRatio( 32.0 / 9.0, 200 * 16);
-  stepperRotate.setReductionRatio(32.0 / 9.0, 200 * 16);
-  stepperExtruder.setReductionRatio(32.0 / 9.0, 200 * 16);
-  
+  stepperHigher.setReductionRatio(32.0 / 10.0, 200 * 1);  //big gear: 32, small gear: 9, steps per rev: 200, microsteps: 16
+  stepperLower.setReductionRatio( 32.0 / 10.0, 200 * 1);
+  stepperRotate.setReductionRatio(32.0 / 10.0, 200 * 1);
+
   //start positions..
   stepperHigher.setPositionRad(PI / 2.0);  //90°
   stepperLower.setPositionRad(0);          // 0°
   stepperRotate.setPositionRad(0);         // 0°
-  stepperExtruder.setPositionRad(0);
-  
+
   //enable and init..
   setStepperEnable(false);
-  interpolator.setInterpolation(0,120,120,0, 0,120,120,0);
-  
+  interpolator.setInterpolation(0, 240, 240, 0, 0, 240, 240, 0);
+  //interpolator.setInterpolation(0, 0, 0, 0, 0, 0, 0, 0);
+
   Serial.println("start");
 }
 
 void setStepperEnable(bool enable) {
   stepperRotate.enable(enable);
   stepperLower.enable(enable);
-  stepperHigher.enable(enable); 
-  stepperExtruder.enable(enable); 
-  fan.enable(enable);
+  stepperHigher.enable(enable);
+
 }
 
 void loop () {
@@ -83,14 +54,14 @@ void loop () {
   stepperRotate.stepToPositionRad(geometry.getRotRad());
   stepperLower.stepToPositionRad (geometry.getLowRad());
   stepperHigher.stepToPositionRad(geometry.getHighRad());
-  stepperExtruder.stepToPositionRad(interpolator.getEPosmm());
   stepperRotate.update();
   stepperLower.update();
   stepperHigher.update();
-  fan.update();
-  
+
   if (!queue.isFull()) {
     if (command.handleGcode()) {
+      Serial.print("HANDLE CMD: ");
+      Serial.println(command.getCmd().id);
       queue.push(command.getCmd());
       printOk();
     }
@@ -98,44 +69,34 @@ void loop () {
   if ((!queue.isEmpty()) && interpolator.isFinished()) {
     executeCommand(queue.pop());
   }
-    
-  if (millis() %500 <250) {
-    digitalWrite(LED_PIN, HIGH);
+
+  if (millis() % 500 < 250) {
+    digitalWrite(LED_BUILTIN, HIGH);
   } else {
-    digitalWrite(LED_PIN, LOW);
+    digitalWrite(LED_BUILTIN, LOW);
   }
 }
 
-
-
-
 void cmdMove(Cmd (&cmd)) {
-  interpolator.setInterpolation(cmd.valueX, cmd.valueY, cmd.valueZ, cmd.valueE, cmd.valueF);
+  Serial.print(cmd.valueX);
+  Serial.print(", ");
+  Serial.print(cmd.valueY);
+  Serial.print(", ");
+  Serial.print(cmd.valueZ);
+  Serial.print(", ");
+  Serial.print(cmd.valueE);
+  Serial.print(", ");
+  Serial.println(cmd.valueF);
+
+  interpolator.setInterpolation(cmd.valueX, cmd.valueY, cmd.valueZ, 0, cmd.valueF);
 }
 void cmdDwell(Cmd (&cmd)) {
   delay(int(cmd.valueT * 1000));
 }
 void cmdGripperOn(Cmd (&cmd)) {
-  stepper.setSpeed(5);
-  stepper.step(int(cmd.valueT));
-  delay(50);
-  digitalWrite(STEPPER_GRIPPER_PIN_0, LOW);
-  digitalWrite(STEPPER_GRIPPER_PIN_1, LOW);
-  digitalWrite(STEPPER_GRIPPER_PIN_2, LOW);
-  digitalWrite(STEPPER_GRIPPER_PIN_3, LOW);
-  //printComment("// NOT IMPLEMENTED");
-  //printFault();
 }
 void cmdGripperOff(Cmd (&cmd)) {
-  stepper.setSpeed(5);
-  stepper.step(-int(cmd.valueT));
-  delay(50);
-  digitalWrite(STEPPER_GRIPPER_PIN_0, LOW);
-  digitalWrite(STEPPER_GRIPPER_PIN_1, LOW);
-  digitalWrite(STEPPER_GRIPPER_PIN_2, LOW);
-  digitalWrite(STEPPER_GRIPPER_PIN_3, LOW);
-  //printComment("// NOT IMPLEMENTED");
-  //printFault();
+
 }
 void cmdStepperOn() {
   setStepperEnable(true);
@@ -144,14 +105,12 @@ void cmdStepperOff() {
   setStepperEnable(false);
 }
 void cmdFanOn() {
-  fan.enable(true);
 }
 void cmdFanOff() {
-  fan.enable(false);
 }
 
 void handleAsErr(Cmd (&cmd)) {
-  printComment("Unknown Cmd " + String(cmd.id) + String(cmd.num) + " (queued)"); 
+  printComment("Unknown Cmd " + String(cmd.id) + String(cmd.num) + " (queued)");
   printFault();
 }
 
@@ -162,7 +121,7 @@ void executeCommand(Cmd cmd) {
     handleAsErr(cmd);
     return;
   }
-  
+
   if (cmd.valueX == NAN) {
     cmd.valueX = interpolator.getXPosmm();
   }
@@ -175,8 +134,11 @@ void executeCommand(Cmd cmd) {
   if (cmd.valueE == NAN) {
     cmd.valueE = interpolator.getEPosmm();
   }
-  
-   //decide what to do
+
+  Serial.print("EXEC CMD: ");
+  Serial.println(cmd.id);
+
+  //decide what to do
   if (cmd.id == 'G') {
     switch (cmd.num) {
       case 0: cmdMove(cmd); break;
@@ -186,7 +148,7 @@ void executeCommand(Cmd cmd) {
       //case 90: cmdToAbsolute(); break;
       //case 91: cmdToRelative(); break;
       //case 92: cmdSetPosition(cmd); break;
-      default: handleAsErr(cmd); 
+      default: handleAsErr(cmd);
     }
   } else if (cmd.id == 'M') {
     switch (cmd.num) {
@@ -197,10 +159,10 @@ void executeCommand(Cmd cmd) {
       case 18: cmdStepperOff(); break;
       case 106: cmdFanOn(); break;
       case 107: cmdFanOff(); break;
-      default: handleAsErr(cmd); 
+      default: handleAsErr(cmd);
     }
   } else {
-    handleAsErr(cmd); 
+    handleAsErr(cmd);
   }
 }
 

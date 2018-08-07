@@ -16,8 +16,8 @@ public:
   //void resetInterpolation(Point p0, Point p1);
   
   void setCurrentPos(float px, float py, float pz, float pe);
-  void setInterpolation(float px, float py, float pz, float pe, float v = 0);
-  void setInterpolation(float p1x, float p1y, float p1z, float p1e, float p2x, float p2y, float p2z, float p2e, float av = 0);
+  void setInterpolation(float px, float py, float pz, float pe = 0, float v = 0);
+  void setInterpolation(float p1x, float p1y, float p1z, float p1e, float p2x, float p2y, float p2z, float p2e = 0, float av = 0);
   
   void setCurrentPos(Point p);
   void setInterpolation(Point p1, float v = 0);
