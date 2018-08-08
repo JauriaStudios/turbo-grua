@@ -23,9 +23,9 @@ void setup() {
 
 
   //reduction of steppers..
-  stepperHigher.setReductionRatio(32.0 / 10.0, 200 * 1);  //big gear: 32, small gear: 9, steps per rev: 200, microsteps: 16
-  stepperLower.setReductionRatio( 32.0 / 10.0, 200 * 1);
-  stepperRotate.setReductionRatio(32.0 / 10.0, 200 * 1);
+  stepperHigher.setReductionRatio(32.0 / 10.0, 200 * 16);  //big gear: 32, small gear: 9, steps per rev: 200, microsteps: 16
+  stepperLower.setReductionRatio(32.0 / 10.0, 200 * 16);
+  stepperRotate.setReductionRatio(32.0 / 10.0, 200 * 16);
 
   //start positions..
   stepperHigher.setPositionRad(PI / 2.0);  //90°
